@@ -238,6 +238,9 @@ int main(int argc, char** argv){
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/dev");
 	umount2(paths, MNT_DETACH);
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/run");
+	umount2(paths, MNT_DETACH);
 	free(paths);
 	if(!WIFEXITED(status)){
 		exit(1);

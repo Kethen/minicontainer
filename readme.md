@@ -10,6 +10,6 @@ Goal: run on random devices such as android phones as long as kernel supports na
 
 TODO:
 
-1. Implement proper recursive umount after init systems
+1. Implement proper recursive umount after init systems / investigate if MNT_DETACH does the job properly
 
 2. Fake tty console for init systems
