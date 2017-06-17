@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/mount.h>
 struct data{
 	char** arg;
 	char** env;
@@ -16,25 +17,70 @@ struct data{
 	char* processName;
 	int pipe_fd[2];
 };
-
+const char* devices[] = {"/null", "/zero", "/full", "/random", "/urandom", "/tty", "/net/tun"};
 int launch(void * input){
-	// chroot
 	struct data * command  = input;
 	// sync
 	//fclose(command->pipe_fd[0]);
 	FILE * pipe_in = fdopen(command->pipe_fd[1], "w");
 	fputc('c', pipe_in);
-	printf("after putting\n");
+	printf("debug: after putting\n");
 	close(pipe_in);
+	// set up some mounts before chroot
+	int length = strlen(command->rootPath);
+	char* paths = malloc(sizeof(char) * (length + 13));
+	char* paths2 = malloc(sizeof(char) * 13);
+	int perm0755 = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/proc");
+	mkdir(paths, perm0755);
+	mount("proc", paths, "proc", 0, "");
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/sys");
+	mkdir(paths, perm0755);
+	mount("sysfs", paths, "sysfs", 0, "");
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/dev");
+	mkdir(paths, perm0755);
+	mount("tmpfs", paths, "tmpfs", 0, "");
+	strcat(paths, "/pts");
+	mkdir(paths, perm0755);
+	mount("devpts", paths, "devpts", 0, "");
+	// copy some device nodes, referencing systemd-nspawn
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/dev/net");
+	mkdir(paths, perm0755);
+	//struct stat buffer;
+	int i;
+	// for some unknown reasons, mknod does not work, only empty files were created
+	// resolving to bindmounts
+	for(i = 0;i < 7;i++){
+		strcpy(paths, command->rootPath);
+		strcat(paths, "/dev");
+		strcat(paths, devices[i]);
+		//stat(paths, &buffer);
+		//mknod(paths, buffer.st_mode, buffer.st_rdev);
+		strcpy(paths2, "/dev");
+		strcat(paths2, devices[i]);
+		printf("debug: %s\n", paths);
+		printf("debug: %s\n", paths2);
+		FILE * file = fopen(paths, "w");
+		close(file);
+		mount(paths2, paths, 0, MS_BIND, 0);
+	}
+	free(paths);
+	free(paths2);
+	// chroot
+	if(chroot(command->rootPath) == -1){
+		printf("chrooting failed\n");
+		printf("path: %s\n", command->rootPath);
+		exit(1);
+	}
 	// according to jchroot sources, sharing files could lead to different chroot escape
 	// I better read more on chroot and security at some point...
 	unshare(CLONE_FILES);
 
-	// mount file systems (moved to main thread)
-	//mount("proc", "/proc", "proc", 0, "");
-	//mount("sysfs", "/sys", "sysfs", 0, "");
-	//mount("devtmpfs", "/dev", "devtmpfs", 0, "");
-	//mount("devpts", "/dev/pts", "devpts", 0, "");
+
 	// start init
 	chdir("/");
 	int pid =execvpe(command->initPath, command->arg, command->env);
@@ -147,48 +193,9 @@ int main(int argc, char** argv){
 		printf("failed creating pipe");
 		exit(1);
 	}
-	// set up some mounts before chroot
-	length = strlen(command->rootPath);
-	char* paths = malloc(sizeof(char) * (length + 13));
-	int perm0755 = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-	strcpy(paths, command->rootPath);
-	strcat(paths, "/proc");
-	mkdir(paths, perm0755);
-	mount("proc", paths, "proc", 0, "");
-	strcpy(paths, command->rootPath);
-	strcat(paths, "/sys");
-	mkdir(paths, perm0755);
-	mount("sys", paths, "sys", 0, "");
-	strcpy(paths, command->rootPath);
-	strcat(paths, "/dev");
-	mkdir(paths, perm0755);
-	mount("tmpfs", paths, "tmpfs", 0, "");
-	strcat(paths, "/pts");
-	mkdir(paths, perm0755);
-	mount("devpts", paths, "devpts", 0, "");
-	// copy some device nodes, referencing systemd-nspawn
-	char** devices = {"/null", "/zero", "/full", "/random", "/urandom", "/tty", "/net/tun"};
-	strcpy(paths, command->rootPath);
-	strcat(paths, "/net");
-	mkdir(paths, perm0755);
-	struct stat buffer;
-	int i;
-	for(i = 0;i < 7;i++){
-		strcpy(paths, command->rootPath);
-		strcat(paths, "/dev");
-		strcat(paths, devices[i]);
-		stat(paths, &buffer);
-		mknod(paths, buffer.st_mode, buffer.st_rdev);
-	}
-	free(paths);
-	// chroot
+	// start child process
 	int pid;
 	void * stack = malloc(sysconf(_SC_PAGESIZE));
-	if(chroot(command->rootPath) == -1){
-		printf("chrooting failed\n");
-		printf("path: %s\n", command->rootPath);
-		exit(1);
-	}
 	pid = clone(launch, stack + sysconf(_SC_PAGESIZE), CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNS, command);
 	if(pid == -1){
 		printf("failed to create child process\n");
@@ -198,7 +205,7 @@ int main(int argc, char** argv){
 	close(command->pipe_fd[1]);
 	FILE * pipe_out = fdopen(command->pipe_fd[0], "r");
 	fgetc(pipe_out);
-	printf("after getting\n");
+	printf("debug: after getting\n");
 	close(pipe_out);
 	int status;
 	if(waitpid(pid, &status, 0) == -1){
@@ -206,16 +213,30 @@ int main(int argc, char** argv){
 		exit(1);
 	}
 	// unmount file systems and remove devices
-	umount("/proc");
-	umount("/sys");
-	umount("/dev/pts");
+	length = strlen(command->rootPath);
+	char* paths = malloc(sizeof(char) * (length + 13));
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/proc");
+	umount(paths);
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/sys");
+	umount(paths);
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/dev/pts");
+	umount(paths);
+	int i;
 	for(i = 0;i < 7;i++){
-		paths = malloc(sizeof(char) * 13);
-		strcpy(paths, "/dev");
+		strcpy(paths, command->rootPath);
+		strcat(paths, "/dev");
 		strcat(paths, devices[i]);
-		remove(paths);
+		// switching to bind mounts for those devices
+		//remove(paths);
+		umount(paths);
 	}
-	umount("/dev");
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/dev");
+	umount(paths);
+	free(paths);
 	if(!WIFEXITED(status)){
 		exit(1);
 	}
