@@ -62,8 +62,6 @@ int launch(void * input){
 		//mknod(paths, buffer.st_mode, buffer.st_rdev);
 		strcpy(paths2, "/dev");
 		strcat(paths2, devices[i]);
-		printf("debug: %s\n", paths);
-		printf("debug: %s\n", paths2);
 		FILE * file = fopen(paths, "w");
 		close(file);
 		mount(paths2, paths, 0, MS_BIND, 0);
@@ -76,6 +74,8 @@ int launch(void * input){
 		printf("path: %s\n", command->rootPath);
 		exit(1);
 	}
+	// dev/pts/ptmx symlink
+	symlink("/dev/pts/ptmx", "/dev/ptmx");
 	// according to jchroot sources, sharing files could lead to different chroot escape
 	// I better read more on chroot and security at some point...
 	unshare(CLONE_FILES);
@@ -83,7 +83,7 @@ int launch(void * input){
 
 	// start init
 	chdir("/");
-	int pid =execvpe(command->initPath, command->arg, command->env);
+	int pid = execvpe(command->initPath, command->arg, command->env);
 	if(pid == -1){
 		printf("failed to execute init %s\n", command->initPath);
 		exit(1);
@@ -107,8 +107,8 @@ int main(int argc, char** argv){
 	command->arg[1][0] = '3';
 	command->arg[1][1] = '\0';
 	//debug
-	free(command->arg[1]);
-	command->arg[1] = 0;
+	//free(command->arg[1]);
+	//command->arg[1] = 0;
 	//debug
 	command->arg[2] = 0;
 	command->env = malloc(sizeof(char*));
@@ -201,6 +201,8 @@ int main(int argc, char** argv){
 		printf("failed to create child process\n");
 		exit(1);
 	}
+	printf("debug: child pid is  %d\n", pid);
+	printf("debug: my pid is %d\n", getpid());
 	// sync with child
 	close(command->pipe_fd[1]);
 	FILE * pipe_out = fdopen(command->pipe_fd[0], "r");
@@ -217,13 +219,13 @@ int main(int argc, char** argv){
 	char* paths = malloc(sizeof(char) * (length + 13));
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/proc");
-	umount(paths);
+	umount2(paths, MNT_DETACH);
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/sys");
-	umount(paths);
+	umount2(paths, MNT_DETACH);
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/dev/pts");
-	umount(paths);
+	umount2(paths, MNT_DETACH);
 	int i;
 	for(i = 0;i < 7;i++){
 		strcpy(paths, command->rootPath);
@@ -231,11 +233,11 @@ int main(int argc, char** argv){
 		strcat(paths, devices[i]);
 		// switching to bind mounts for those devices
 		//remove(paths);
-		umount(paths);
+		umount2(paths, MNT_DETACH);
 	}
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/dev");
-	umount(paths);
+	umount2(paths, MNT_DETACH);
 	free(paths);
 	if(!WIFEXITED(status)){
 		exit(1);
@@ -243,3 +245,4 @@ int main(int argc, char** argv){
 	return 0;
 }
 
+systemd
