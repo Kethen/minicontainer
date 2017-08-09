@@ -4,11 +4,14 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mount.h>
+#include <signal.h>
+#include <termios.h>
 struct data{
 	char** arg;
 	char** env;
@@ -17,6 +20,53 @@ struct data{
 	char* processName;
 	int pipe_fd[2];
 };
+int ptymaster;
+int initpid;
+int ptyoutpid;
+int ptyinpid;
+struct termios config;
+void sigHandlerMain(int signum){
+	if(ptyinpid != -1){
+		kill(ptyinpid, signum);
+	}
+}
+void sigHandlerTerm(int signum){
+	if(initpid != -1){
+		kill(SIGKILL, initpid);
+	}
+	
+}
+void sigHandlerPtyin(int signum){
+	if(ptymaster != -1){
+		FILE* ptyin = fdopen(ptymaster, "w");
+		switch(signum){
+			case SIGINT:
+				fputc(ptyin, 3);
+				break;
+			case SIGTSTP:
+				fputc(ptyin, 11);
+				break;
+		}
+		fclose(ptyin);
+	}
+}
+void ptyin(void * input){
+	// redirect input
+	signal(SIGINT, sigHandlerPtyin);
+	signal(SIGTSTP, sigHandlerPtyin);
+	FILE* ptyin = fdopen(ptymaster, "w");
+	FILE* stdin = fdopen(0, "r");
+	while(1){
+		fputc(fgetc(stdin), ptyin);
+	}
+}
+void ptyout(void * input){
+	// redirect output
+	FILE* ptyout = fdopen(ptymaster, "r");
+	while(1){
+		printf("%c", fgetc(ptyout));
+	}
+}
 const char* devices[] = {"/null", "/zero", "/full", "/random", "/urandom", "/tty", "/net/tun"};
 int launch(void * input){
 	struct data * command  = input;
@@ -31,25 +81,26 @@ int launch(void * input){
 	char* paths = malloc(sizeof(char) * (length + 13));
 	char* paths2 = malloc(sizeof(char) * 13);
 	int perm0755 = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+	int result = 0;
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/proc");
-	mkdir(paths, perm0755);
-	mount("proc", paths, "proc", 0, "");
+	result += mkdir(paths, perm0755);
+	result += mount("proc", paths, "proc", 0, "");
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/sys");
-	mkdir(paths, perm0755);
-	mount("sysfs", paths, "sysfs", 0, "");
+	result += mkdir(paths, perm0755);
+	result += mount("sysfs", paths, "sysfs", 0, "");
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/dev");
-	mkdir(paths, perm0755);
-	mount("tmpfs", paths, "tmpfs", 0, "");
+	result += mkdir(paths, perm0755);
+	result += mount("tmpfs", paths, "tmpfs", 0, "");
 	strcat(paths, "/pts");
-	mkdir(paths, perm0755);
-	mount("devpts", paths, "devpts", 0, "");
+	result += mkdir(paths, perm0755);
+	result += mount("devpts", paths, "devpts", 0, "");
 	// copy some device nodes, referencing systemd-nspawn
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/dev/net");
-	mkdir(paths, perm0755);
+	result += mkdir(paths, perm0755);
 	//struct stat buffer;
 	int i;
 	// for some unknown reasons, mknod does not work, only empty files were created
@@ -64,23 +115,24 @@ int launch(void * input){
 		strcat(paths2, devices[i]);
 		FILE * file = fopen(paths, "w");
 		close(file);
-		mount(paths2, paths, 0, MS_BIND, 0);
+		result += mount(paths2, paths, 0, MS_BIND, 0);
 	}
 	free(paths);
 	free(paths2);
+	if(result != 0){
+		printf("failed mounting file systems\n");
+		exit(1);
+	}
 	// chroot
 	if(chroot(command->rootPath) == -1){
 		printf("chrooting failed\n");
 		printf("path: %s\n", command->rootPath);
 		exit(1);
 	}
-	// dev/pts/ptmx symlink
 	symlink("/dev/pts/ptmx", "/dev/ptmx");
 	// according to jchroot sources, sharing files could lead to different chroot escape
 	// I better read more on chroot and security at some point...
 	unshare(CLONE_FILES);
-
-
 	// start init
 	chdir("/");
 	int pid = execvpe(command->initPath, command->arg, command->env);
@@ -94,9 +146,23 @@ void printUsage(){
 	return;
 }
 int main(int argc, char** argv){
+	ptymaster = -1;
+	ptyinpid = -1;
+	ptyoutpid = -1;
+	initpid = -1;
 	// check if the current user is root
 	if(getuid() != 0){
 		printf("this program needs to be executed as root\n");
+		exit(1);
+	}
+	// check if program is being executed in a tty
+	if(!isatty(0)){
+		printf("this program needs to be execute with tty or a pty\n");
+		exit(1);
+	}
+	// capture tty attributes
+	if(tcgetattr(0, &config) < 0){
+		printf("failed saving tty attributes\n");
 		exit(1);
 	}
 	struct data * command = malloc(sizeof(struct data));
@@ -193,15 +259,57 @@ int main(int argc, char** argv){
 		printf("failed creating pipe");
 		exit(1);
 	}
+	// handle signals of ctrl+c and ctrl+z
+	signal(SIGINT, sigHandlerMain);
+	signal(SIGTSTP, sigHandlerMain);
+	
+	// create new ptx and bind to /dev/console, hope that it works
+	ptymaster = posix_openpt();
+	if(ptymaster < 0){
+		printf("failed opening pty");
+		exit(0);
+	}
+	char pathBuffer[50];
+	char fullPathBuffer1[strlen(command->rootPath) + 50];
+	char fullPathBuffer2[strlen(command->rootPath) + 50];
+	if(unlockpt(ptymaster) < 0){
+		printf("failed unlocking pty");
+		exit(0);
+	}
+	if(ptsname_r(ptymaster, pathBuffer) != 0){
+		printf("failed getting pts path");
+		exit(0);
+	}
+	int ptyslave = open(pathBuffer, O_RDWR);
+	struct termios ptsattr;
+	tcgetattr(ptyslave, &ptsattr);
+	cfmakeraw(&ptsattr);
+	tcsetattr(ptyslave, TCSANOW, &ptsattr);
+	close(ptyslave);
+	strcpy(fullPathBuffer1, command->rootPath);
+	strcat(fullPathBuffer1, "/dev/console");
+	strcpy(fullPathBuffer2, command->rootPath);
+	strcat(fullPathBuffer2, pathBuffer);
+	mount(fullPathBuffer1, fullPathBuffer2, 0, MS_BIND, 0);
+	void * ptyinstack = malloc(sysconf(_SC_PAGESIZE)); 
+	ptyinpid = clone(ptyin, ptyinstack + sysconf(_SC_PAGESIZE), CLONE_VM, 0);
+	void * ptyoutstack = malloc(sysconf(_SC_PAGESIZE));
+	ptyoutpid = clone(ptyout, ptyoutstack + sysconf(_SC_PAGESIZE), CLONE_VM, 0);
+	if(ptyinpid == -1 || ptyoutpid == -1){
+		printf("failed opening pty");
+		exit(0);
+	}
 	// start child process
-	int pid;
 	void * stack = malloc(sysconf(_SC_PAGESIZE));
-	pid = clone(launch, stack + sysconf(_SC_PAGESIZE), CLONE_NEWIPC | CLONE_NEWPID | CLONE_NEWNS, command);
-	if(pid == -1){
+	
+	//int cloneFlags = CLONE_NEWPID;
+	int cloneFlags = CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWIPC | CLONE_VM;
+	initpid = clone(launch, stack + sysconf(_SC_PAGESIZE), cloneFlags, command);
+	if(initpid == -1){
 		printf("failed to create child process\n");
 		exit(1);
 	}
-	printf("debug: child pid is  %d\n", pid);
+	printf("debug: child pid is  %d\n", initpid);
 	printf("debug: my pid is %d\n", getpid());
 	// sync with child
 	close(command->pipe_fd[1]);
@@ -210,10 +318,25 @@ int main(int argc, char** argv){
 	printf("debug: after getting\n");
 	close(pipe_out);
 	int status;
-	if(waitpid(pid, &status, 0) == -1){
-		printf("something went wrong while waiting for the child to exit\n");
+	// now handle SIGTERM by killing the init
+	signal(SIGTERM, sigHandlerTerm);
+	// change tty to raw mode
+	struct termios raw = config;
+	raw.c_iflag &= ~ICANON;
+	raw.c_iflag &= ~ECHO;
+	if(tcsetattr(0, TCSANOW, &raw) < 0){
+		printf("failed setting tty to raw mode\n");
 		exit(1);
 	}
+	if(waitpid(initpid, &status, 0) == -1){
+		printf("something went wrong while waiting for the child to exit\n");
+		// reset tty to cooked mode
+		tcsetattr(0, TCSANOW, &config);
+		exit(1);
+	}
+	kill(SIGKILL, ptyinpid);
+	kill(SIGKILL, ptyoutpid);
+	free(stack);
 	// unmount file systems and remove devices
 	length = strlen(command->rootPath);
 	char* paths = malloc(sizeof(char) * (length + 13));
@@ -241,7 +364,13 @@ int main(int argc, char** argv){
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/run");
 	umount2(paths, MNT_DETACH);
+	// unbind /dev/console from the pty
+	strcpy(paths, command->rootPath);
+	strcat(paths, "/dev/console");
+	umount2(paths, MNT_DETACH);
 	free(paths);
+	// restore tty to cooked mode
+	tcsetattr(0, TCSANOW, &config);
 	if(!WIFEXITED(status)){
 		exit(1);
 	}
