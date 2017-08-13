@@ -301,6 +301,7 @@ int main(int argc, char** argv){
 	// handle signals of ctrl+c and ctrl+z
 	signal(SIGINT, sigHandlerMain);
 	signal(SIGTSTP, sigHandlerMain);
+	signal(SIGHUP, sigHandlerMain);
 	// run in reattach mode
 	if(reattach){
 		

@@ -431,6 +431,7 @@ int main(int argc, char** argv){
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/proc/sys");
 	umount2(paths, MNT_DETACH);
+	umount2(paths, MNT_DETACH);
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/proc");
 	umount2(paths, MNT_DETACH);

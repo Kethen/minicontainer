@@ -184,6 +184,9 @@ void printUsage(){
 	return;
 }
 int main(int argc, char** argv){
+	// attaching with gdb
+	printf("debug: my pid is %d, sleeping for 10 sec\n", getpid());
+	sleep(10);
 	//ptymaster = -1;
 	//ptyinpid = -1;
 	//ptyoutpid = -1;
@@ -338,7 +341,7 @@ int main(int argc, char** argv){
 	// handle signals of ctrl+c and ctrl+z
 	signal(SIGINT, sigHandlerMain);
 	signal(SIGTSTP, sigHandlerMain);
-	
+	signal(SIGHUP, sigHandlerMain);
 	// bind the current tty to /dev/console
 	char ttynameBuffer[50];
 	char fullPathBuffer[strlen(command->rootPath) + 12];
@@ -367,7 +370,6 @@ int main(int argc, char** argv){
 		exit(1);
 	}
 	printf("debug: child pid is  %d\n", initpid);
-	printf("debug: my pid is %d\n", getpid());
 	// sync with child
 	close(command->pipe_fd[1]);
 	FILE * pipe_out = fdopen(command->pipe_fd[0], "r");
