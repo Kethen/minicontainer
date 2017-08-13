@@ -1,0 +1,60 @@
+#!/usr/bin/make -f
+#
+# Copyright (C) 1997 joost witteveen <joost@rulcmc.leidenuniv.nl>
+# Copyright (C) 1997-2001 Juan Cespedes <cespedes@debian.org>
+# Copyright (C) 2001 Adam Lazur <zal@debian.org>
+# Copyright (C) 2011-2013 Axel Beckert <abe@debian.org>
+
+# Uncomment me to turn on debugging
+#export DH_VERBOSE=1
+
+ROOT := $(CURDIR)/debian/screen
+# statically define this... sucko
+TTYGROUP := 5
+
+%:
+	dh $@ --parallel --with autoreconf
+
+override_dh_auto_clean:
+	test ! -s doc/Makefile || $(MAKE) -C doc realclean
+	test ! -s Makefile || ! grep -q clean Makefile || $(MAKE) realclean
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		    --with-socket-dir=/var/run/screen \
+		    --enable-pam \
+		    --with-pty-mode=0620 \
+		    --with-pty-group=${TTYGROUP} \
+		    --enable-rxvt_osc \
+		    --with-sys-screenrc=/etc/screenrc \
+		    --enable-colors256 \
+		    --enable-telnet \
+		    --enable-use-locale
+	# Assert the use of fifos instead of sockets
+	grep -q "define.*NAMEDPIPE.*1" config.h || echo "#define NAMEDPIPE 1" >> config.h
+
+override_dh_auto_build:
+	dh_auto_build       -- CFLAGS+='-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers'
+	dh_auto_build -Ddoc -- CFLAGS+='-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers'
+
+override_dh_auto_install:
+	# can't call the normal install target b/c it installs the info files
+	# and other crud
+	$(MAKE) prefix=$(ROOT)/usr SCREENENCODINGS='$$(prefix)/share/screen/utf8encodings' installdirs install_bin
+	# hack around the fact that the install target makes screen a symlink to screen-$$(VERSION)
+	rm -f $(ROOT)/usr/bin/screen
+	mv -f $(ROOT)/usr/bin/screen* $(ROOT)/usr/bin/screen
+	# make it setgid utmp
+	chown root:utmp $(ROOT)/usr/bin/screen
+	chmod 2755 $(ROOT)/usr/bin/screen
+	# Fix package-contains-info-dir-file, remove /usr/share/info/dir.gz
+	rm -f $(ROOT)/usr/share/info/dir*
+
+override_dh_installinit:
+	dh_installinit --no-start --init-script='screen-cleanup'
+
+override_dh_fixperms:
+	dh_fixperms -X/usr/bin/screen
+
+override_dh_strip:
+	dh_strip --dbg-package=screen-dbg

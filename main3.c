@@ -12,6 +12,7 @@
 #include <sys/mount.h>
 #include <signal.h>
 #include <termios.h>
+#include <config.h>
 #include <screen.h>
 struct data{
 	char** arg;

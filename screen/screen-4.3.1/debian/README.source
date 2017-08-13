@@ -1,0 +1,12 @@
+Jenkins Autobuilds of Debian's Screen Package
+=============================================
+
+The Jenkins instance of the Grml Project builds new screen packages
+upon each push to the collab-maint git repository, see
+http://jenkins.grml.org/view/Debian/. Thanks Mika Prokop and the Grml
+Team for that service!
+
+You can get the resulting .deb packages also via APT, see
+http://jenkins.grml.org/view/Debian/job/screen-binaries/ for details.
+
+ -- Axel Beckert <abe@debian.org>, Sat, 13 Jun 2015 23:48:43 +0200

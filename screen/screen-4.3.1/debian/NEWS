@@ -1,0 +1,31 @@
+screen (4.1.0~20120320gitdb59704-10) unstable; urgency=medium
+
+  On systems running systemd, the management of /var/run/screen previously
+  handled by /etc/init.d/screen-cleanup now occurs via systemd-tmpfiles and
+  /usr/lib/tmpfiles.d/screen-cleanup.conf.  The installed version of that
+  file works for systems with the default screen permissions; if you override
+  the permissions of /usr/bin/screen with dpkg-statoverride as documented in
+  /usr/share/doc/screen/README.Debian, you should create an overriding file
+  /etc/tmpfiles.d/screen-cleanup.conf setting the corresponding permissions.
+  See /usr/share/doc/screen/README.Debian for details.
+
+  If you have already overridden the permissions of /usr/bin/screen, an
+  /etc/tmpfiles.d/screen-cleanup.conf has been created for you.
+
+ -- Axel Beckert <abe@debian.org>  Fri, 28 Feb 2014 12:23:42 +0100
+
+screen (4.1.0~20120320gitdb59704-7) unstable; urgency=low
+
+  In case you upgrade screen from 4.0.3 to 4.1.0 while running inside
+  screen and you have to reconnect to that screen session (or any other
+  screen session which has been started before the upgrade), there may be
+  a few screen features not working until you exit the 4.0.3-started
+  session and replace it with a 4.1.0-started session.
+
+  Known issues of 4.0.3 to 4.1.0 interoperability as of now:
+
+  * Terminal window resizing (WINCH signal) does not propagate to the
+    screen session. Detach and reattach again instead to get the size of
+    the terminals inside the screen session adjusted propely.
+
+ -- Axel Beckert <abe@debian.org>  Sun, 16 Sep 2012 12:48:44 +0200

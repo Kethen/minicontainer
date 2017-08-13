@@ -1,0 +1,45 @@
+Description: show encoding in hardstatus
+Author: Yi-Jheng Lin <yzlin@cs.nctu.edu.tw>
+Origin: https://svnweb.freebsd.org/ports/head/sysutils/screen/files/opt-showencoding?view=markup
+Reviewed-By: rascov <rascov@rascov.tw>
+Reviewed-By: Dustin Kirkland <kirkland@ubuntu.com>
+Last-Update: Wed Feb 11 05:51:31 CST 2009
+Bug-FreeBSD: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=124492
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/screen/+bug/286810
+Bug-Debian: https://bugs.debian.org/533498
+
+Index: screen/screen.c
+===================================================================
+--- screen.orig/screen.c	2015-06-13 23:35:52.353329013 +0200
++++ screen/screen.c	2015-06-13 23:35:52.349329014 +0200
+@@ -2824,6 +2824,18 @@
+ 	    }
+ 	  p += strlen(p) - 1;
+ 	  break;
++	#ifdef ENCODINGS
++	case 'e':
++	    *p = 0;
++	    D_encoding = nwin_options.encoding > 0 ? nwin_options.encoding : 0;
++	    if (win && win->w_encoding)
++            {
++		*p++ = ' ';
++		strcpy(p, EncodingName(win->w_encoding));
++            }
++            p += strlen(p) - 1;
++            break;
++	#endif
+ 	case '{':
+           {
+ 	    char rbuf[128];
+Index: screen/process.c
+===================================================================
+--- screen.orig/process.c	2015-06-13 23:35:52.353329013 +0200
++++ screen/process.c	2015-06-13 23:35:52.349329014 +0200
+@@ -3770,6 +3770,7 @@
+ 	    {
+ 	      WinSwitchEncoding(fore, n);
+ 	      ResetCharsets(fore);
++	      RedisplayDisplays(0);
+ 	    }
+ 	  else if (i && display)
+ 	    D_encoding  = n;
