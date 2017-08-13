@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <getopt.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -127,14 +126,24 @@ int launch(void * input){
 	unshare(CLONE_FILES);
 	// start init
 	chdir("/");
+	// close current stdin, stdout, stderr
+	//char ttynameBuffer[50];
+	//ttyname_r(0, ttynameBuffer, 50);
+	//close(0);
+	//close(1);
+	//close(2);
 	int pid = execvpe(command->initPath, command->arg, command->env);
+	//int ttyfd = open(ttynameBuffer, O_RDWR);
+	//dup(ttyfd);
+	//dup(ttyfd);
+	//dup(ttyfd);
 	if(pid == -1){
 		printf("failed to execute init %s\n", command->initPath);
 		exit(1);
 	}
 }
 void printUsage(){
-	printf("Usage: minicontainer -p root path [-i custom init path inside root=/sbin/init] [-r runlevel=3] [-n custom child process name=minicontainer_inside] [-s screen binary] [-h highjack pty directly without screen]\n");
+	printf("Usage: minicontainer -p root path [-i custom init path inside root=/sbin/init] [-r runlevel=3] [-n custom child process name=minicontainer_inside (inits could change their name however)] [-s screen binary] [-h]\n-h will skip starting a new screen then take current tty over directly. This method usually result in sighup on parent and kills the parent. This flag was made for self launching inside a screen\n");
 	return;
 }
 void addToArg(char opt, char* arg, char** argv, int* count){
@@ -195,8 +204,10 @@ int main(int argc, char** argv){
 	// make a copy of arguments if we're starting in screen mode
 	int argc2 = 3;
 	char* argv2[argc + 3];
-	argv2[0] = argv[0];
-	argv2[1] = argv[0];
+	argv2[0] = malloc((strlen(argv[0]) + 1) * sizeof(char));
+	strcpy(argv2[0], argv[0]);
+	argv2[1] = malloc((strlen(argv[0]) + 1) * sizeof(char));
+	strcpy(argv2[1], argv[0]);
 	argv2[2] = "-h";
 	// flag for starting in screen mode
 	int screen = 1;
@@ -205,7 +216,7 @@ int main(int argc, char** argv){
 	// flag for reattach mode
 	int reattach = 0;
 	char* reattachString = 0;
-	while((opt = getopt(argc, argv, "p:i:r:n:s:a:h")) != -1){
+	while((opt = getopt(argc, argv, ":p:i:r:n:s:a:h")) != -1){
 		switch(opt){
 			case 'p':
 				length = strlen(optarg);
@@ -275,27 +286,20 @@ int main(int argc, char** argv){
 					strcpy(reattachString, optarg);
 				}
 				break;
+			case ':':
+				if(optopt != 'a'){
+					printUsage();
+					exit(1);
+				}else{
+					reattach = 1;
+				}
+				break;
 			default:
 				printUsage();
 				exit(1);
 				break;
 		}
 	}
-	if(command->rootPath == 0){
-		printf("you must specify a root path\n");
-		printUsage();
-		exit(1);
-	}
-	if(strcmp(command->rootPath, "/") == 0){
-		printf("don't think using root as a chroot is a good idea....\n");
-		exit(1);
-	}
-	DIR* dir = opendir(command->rootPath);
-	if(!dir){
-		printf("given path %s is not accessible\n", command->rootPath);
-		exit(1);
-	}
-	closedir(dir);
 	// cap the newly created argument copy
 	argv2[argc2] = 0;
 	// handle signals of ctrl+c and ctrl+z
@@ -315,17 +319,33 @@ int main(int argc, char** argv){
 			exit(0);
 		}
 	}
+	if(command->rootPath == 0){
+		printf("you must specify a root path\n");
+		printUsage();
+		exit(1);
+	}
+	if(strcmp(command->rootPath, "/") == 0){
+		printf("don't think using root as a chroot is a good idea....\n");
+		exit(1);
+	}
+	DIR* dir = opendir(command->rootPath);
+	if(!dir){
+		printf("given path %s is not accessible\n", command->rootPath);
+		exit(1);
+	}
+	closedir(dir);
 	// run in screen mode or pty highjack mode
-	printf("debug: %s\n", argv2[0]);
 	if(screen){
 		// custom binary or embedded
 		if(screenBinary){
 			argv2[0] = screenBinary;
 			if(execvp(screenBinary, argv2) == -1){
-				printf("cannot find epecified binary %s", screenBinary);
+				printf("cannot find specified binary %s", screenBinary);
 			}
 			exit(0);
 		}else{
+			printf("debug: argv2[1] is %s\n", argv2[1]);
+			printf("debug: argc2 is %d\n", argc2);
 			main2(argc2, argv2);
 			exit(0);
 		}

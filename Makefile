@@ -11,7 +11,8 @@ SCREENHEADERFULL = $(SCREENSRC)/acls.h $(SCREENSRC)/ansi.h $(SCREENSRC)/attacher
 SCREENENCODINGS = $(datadir)/screen/utf8encodings
 
 miniscreencontainer: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
-	gcc -g3 -O2 -Wall -Wextra -std=c11 -iquote. -DSCREENENCODINGS='"$(SCREENENCODINGS)"' $(SCREENOBJFULL) -I$(SCREENSRC) main3.c -lutil -lcrypt -lcurses  -lutil -lpam -o miniscreencontainer
+	#gcc -g3 -O2 -Wall -Wextra -std=c11 -iquote. -DSCREENENCODINGS='"$(SCREENENCODINGS)"' $(SCREENOBJFULL) -I$(SCREENSRC) main3.c -lutil -lcrypt -lcurses  -lutil -lpam -o miniscreencontainer
+	gcc -s $(SCREENOBJFULL) -I$(SCREENSRC) main3.c -lutil -lcrypt -lcurses  -lutil -lpam -o miniscreencontainer
 
 miniweirdcontainer: main.c
 	gcc -s main.c -o miniweirdcontainer
@@ -22,79 +23,83 @@ minicontainer: main2.c
 $(SCREENSRC)/Makefile:
 	cd $(SCREENSRC); ./autogen.sh; ./configure
 
-$(SCREENSRC)/acls.o:$(SCREENSRC)/Makefile
+clean:
+	rm -f minicontainer miniweirdcontainer miniscreencontainer 
+	cd $(SCREENSRC); make distclean;
+
+$(SCREENSRC)/acls.o:$(SCREENSRC)/acls.c $(SCREENSRC)/acls.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make acls.o
-$(SCREENSRC)/ansi.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/ansi.o:$(SCREENSRC)/ansi.c $(SCREENSRC)/ansi.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make ansi.o
-$(SCREENSRC)/attacher.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/attacher.o:$(SCREENSRC)/attacher.c $(SCREENSRC)/attacher.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make attacher.o
-$(SCREENSRC)/backtick.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/backtick.o:$(SCREENSRC)/backtick.c $(SCREENSRC)/backtick.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make backtick.o
-$(SCREENSRC)/canvas.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/canvas.o:$(SCREENSRC)/canvas.c $(SCREENSRC)/canvas.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make canvas.o
-$(SCREENSRC)/comm.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make comm.o
-$(SCREENSRC)/display.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/mm.o:$(SCREENSRC)/mm.c $(SCREENSRC)/mm.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make mm.o
+$(SCREENSRC)/display.o:$(SCREENSRC)/display.c $(SCREENSRC)/display.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make display.o
-$(SCREENSRC)/encoding.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make encoding.o
-$(SCREENSRC)/fileio.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make fileio.o
-$(SCREENSRC)/help.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/ending.o:$(SCREENSRC)/ending.c $(SCREENSRC)/ending.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make ending.o
+$(SCREENSRC)/file.o:$(SCREENSRC)/file.c $(SCREENSRC)/file.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make file.o
+$(SCREENSRC)/help.o:$(SCREENSRC)/help.c $(SCREENSRC)/help.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make help.o
-$(SCREENSRC)/input.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/input.o:$(SCREENSRC)/input.c $(SCREENSRC)/input.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make input.o
-$(SCREENSRC)/kmapdef.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/kmapdef.o:$(SCREENSRC)/kmapdef.c $(SCREENSRC)/kmapdef.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make kmapdef.o
-$(SCREENSRC)/layer.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/layer.o:$(SCREENSRC)/layer.c $(SCREENSRC)/layer.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make layer.o
-$(SCREENSRC)/layout.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make layout.o
-$(SCREENSRC)/list_display.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/laut.o:$(SCREENSRC)/laut.c $(SCREENSRC)/laut.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make laut.o
+$(SCREENSRC)/list_display.o:$(SCREENSRC)/list_display.c $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make list_display.o
-$(SCREENSRC)/list_generic.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/list_generic.o:$(SCREENSRC)/list_generic.c $(SCREENSRC)/list_generic.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make list_generic.o
-$(SCREENSRC)/list_license.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/list_license.o:$(SCREENSRC)/list_license.c $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make list_license.o
-$(SCREENSRC)/list_window.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make list_window.o
-$(SCREENSRC)/logfile.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make logfile.o
-$(SCREENSRC)/mark.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/list_winw.o:$(SCREENSRC)/list_winw.c $(SCREENSRC)/list_winw.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make list_winw.o
+$(SCREENSRC)/gfile.o:$(SCREENSRC)/gfile.c $(SCREENSRC)/gfile.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make gfile.o
+$(SCREENSRC)/mark.o:$(SCREENSRC)/mark.c $(SCREENSRC)/mark.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make mark.o
-$(SCREENSRC)/misc.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/misc.o:$(SCREENSRC)/misc.c $(SCREENSRC)/misc.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make misc.o
-$(SCREENSRC)/process.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make process.o
-$(SCREENSRC)/pty.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/pcess.o:$(SCREENSRC)/pcess.c $(SCREENSRC)/pcess.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make pcess.o
+$(SCREENSRC)/pty.o:$(SCREENSRC)/pty.c $(SCREENSRC)/pty.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make pty.o
-$(SCREENSRC)/resize.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/resize.o:$(SCREENSRC)/resize.c $(SCREENSRC)/resize.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make resize.o
-$(SCREENSRC)/sched.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/sched.o:$(SCREENSRC)/sched.c $(SCREENSRC)/sched.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make sched.o
-$(SCREENSRC)/screen.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/screen.o:$(SCREENSRC)/screen.c $(SCREENSRC)/screen.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make screen.o
-$(SCREENSRC)/search.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/search.o:$(SCREENSRC)/search.c $(SCREENSRC)/search.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make search.o
-$(SCREENSRC)/socket.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make socket.o
-$(SCREENSRC)/telnet.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/cket.o:$(SCREENSRC)/cket.c $(SCREENSRC)/cket.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make cket.o
+$(SCREENSRC)/telnet.o:$(SCREENSRC)/telnet.c $(SCREENSRC)/telnet.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make telnet.o
-$(SCREENSRC)/termcap.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/termcap.o:$(SCREENSRC)/termcap.c $(SCREENSRC)/termcap.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make termcap.o
-$(SCREENSRC)/term.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/term.o:$(SCREENSRC)/term.c $(SCREENSRC)/term.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make term.o
-$(SCREENSRC)/tty.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/tty.o:$(SCREENSRC)/tty.c $(SCREENSRC)/tty.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make tty.o
-$(SCREENSRC)/utmp.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/utmp.o:$(SCREENSRC)/utmp.c $(SCREENSRC)/utmp.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make utmp.o
-$(SCREENSRC)/viewport.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make viewport.o
-$(SCREENSRC)/window.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make window.o
-$(SCREENSRC)/winmsgbuf.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/viewrt.o:$(SCREENSRC)/viewrt.c $(SCREENSRC)/viewrt.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make viewrt.o
+$(SCREENSRC)/winw.o:$(SCREENSRC)/winw.c $(SCREENSRC)/winw.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make winw.o
+$(SCREENSRC)/winmsgbuf.o:$(SCREENSRC)/winmsgbuf.c $(SCREENSRC)/winmsgbuf.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make winmsgbuf.o
-$(SCREENSRC)/winmsgcond.o:$(SCREENSRC)/Makefile
-	cd $(SCREENSRC); make winmsgcond.o
-$(SCREENSRC)/winmsg.o:$(SCREENSRC)/Makefile
+$(SCREENSRC)/winmsgnd.o:$(SCREENSRC)/winmsgnd.c $(SCREENSRC)/winmsgnd.h $(SCREENSRC)/Makefile
+	cd $(SCREENSRC); make winmsgnd.o
+$(SCREENSRC)/winmsg.o:$(SCREENSRC)/winmsg.c $(SCREENSRC)/winmsg.h $(SCREENSRC)/Makefile
 	cd $(SCREENSRC); make winmsg.o
