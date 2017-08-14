@@ -21,6 +21,8 @@ Usage:
 	[-a [pid or name, relays to screen -r for reattachment]] \
 	[-h] 
 -h will skip starting a new screen then take current tty over directly. This method usually result in sighup on parent and kills the parent. This flag was made for self launching inside a screen \
+
 #minicontainer -p (root path) [-i (custom init path inside root=/sbin/init)] [-r (runlevel=3)] [-n (custom child process name=minicontainer_inside (inits could change their name however))] [-s (alternate screen binary)] \
+
 #miniweirdcontainer -p (root path) [-i (custom init path inside root=/sbin/init)] [-r (runlevel=3)] [-n (custom child process name=minicontainer_inside (inits could change their name however))] [-s (alternate screen binary)]
 
