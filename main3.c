@@ -189,7 +189,7 @@ int launch(void * input){
 }
 void printUsage(){
 	printf("Usage:\n");
-	printf("miniscreencontainer -p root path \\\n");
+	printf("minicontainer -p root path \\\n");
 	printf("\t[-i init=/sbin/init] \\\n"); 
 	printf("\t[-r runlevel=3] \\\n");
 	printf("\t[-n custom child process name and screen window name] \\\n");
