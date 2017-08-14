@@ -130,7 +130,7 @@ int launch(void * input){
 	}
 }
 void printUsage(){
-	printf("Usage: minicontainer -p root path [-i custom init path inside root=/sbin/init] [-r runlevel=3] [-n custom child process name=minicontainer_inside (inits could change their name however)] [-s screen binary] [-h]\n-h will skip starting a new screen then take current tty over directly. This method usually result in sighup on parent and kills the parent. This flag was made for self launching inside a screen\n");
+	printf("Usage: miniscreencontainer -p root path [-i custom init path inside root=/sbin/init] [-r runlevel=3] [-n custom child process name=minicontainer_inside (inits could change their name however)] [-s alternate screen binary] [-h]\n-h will skip starting a new screen then take current tty over directly. This method usually result in sighup on parent and kills the parent. This flag was made for self launching inside a screen\n");
 	return;
 }
 void addToArg(char opt, char* arg, char** argv, int* count){
