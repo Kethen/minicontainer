@@ -8,10 +8,10 @@ jchroot https://github.com/vincentbernat/jchroot/blob/master/
 
 Goal: run on random devices such as android phones as long as kernel supports namespaces
 
-Build:
-$make miniscreencontainer (screen embedded version)
-$make minicontainer (tty stealing version, usually kills parent process due to SIGHUP sent from agetty when it takes over)
-$make miniweirdcontainer (first prototype, trying to do pty passthrough then realise that I need vt100 emulation codes)
+Build:\
+$make miniscreencontainer (screen embedded version)\
+$make minicontainer (tty stealing version, usually kills parent process due to SIGHUP sent from agetty when it takes over)\
+$make miniweirdcontainer (first prototype, trying to do pty passthrough then realise that I need vt100 emulation codes)\
 
 Usage: \
 #miniscreencontainer -p (root path) \
