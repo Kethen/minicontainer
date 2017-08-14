@@ -13,19 +13,19 @@ Build:\
 $make
 
 Usage: \
-#minicontainer -p (root path) \
+	#minicontainer -p (root path) \
 
-	[-i init=/sbin/init] \
+		[-i init=/sbin/init] \
 	
-	[-r runlevel=3] \
+		[-r runlevel=3] \
 	
-	[-n custom child process name and screen window name] \
+		[-n custom child process name and screen window name] \
 	
-	[-s alternate screen binary] \
+		[-s alternate screen binary] \
 	
-	[-a [pid or name, relays to screen -r for reattachment]] \
+		[-a [pid or name, relays to screen -r for reattachment]] \
 		
-	[-h]
+		[-h]
 
 -n : inits could change their process name however
 	
