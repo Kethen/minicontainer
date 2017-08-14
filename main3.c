@@ -1,4 +1,3 @@
-#include <config.h>
 #include <linux/sched.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +11,8 @@
 #include <fcntl.h>
 #include <sys/mount.h>
 #include <signal.h>
-#include <termios.h>
+#include <mntent.h>
+#include <config.h>
 #include <screen.h>
 struct data{
 	char** arg;
@@ -85,6 +85,44 @@ void freeData(struct data* command){
 	free(command->rootPath);
 	free(command->processName);
 	free(command);
+	return;
+}
+// structure and function for mount point cleaning
+struct mountPoint{
+	struct mountPoint* last;
+	struct mountPoint* next;
+	char* path;
+};
+void cleanMount(char *rootPath){
+	// first get all mount points
+	struct mntent* mntline;
+	FILE* mounts = setmntent("/proc/mounts", "r");
+	if(mounts == 0){
+		printf("error loading /proc/mounts\n");
+	}
+	struct mountPoint* listTail = 0;
+	struct mountPoint* new = 0;
+	while((mntline = getmntent(mounts)) != 0){
+		if(strstr(mntline->mnt_dir, rootPath) != mntline->mnt_dir){
+			continue;
+		}
+		new = malloc(sizeof(struct mountPoint));
+		new->last = listTail;
+		listTail = new;
+		new->path = malloc((strlen(mntline->mnt_dir) + 1) * sizeof(char));
+		strcpy(new->path, mntline->mnt_dir);
+	}
+	endmntent(mounts);
+	// umount and consume the list from tail
+	while(listTail != 0){
+		if(umount2(listTail->path, MNT_DETACH) != 0){
+			printf("failed unmounting %s", listTail->path);
+		}
+		free(listTail->path);
+		new = listTail;
+		listTail = listTail->last;
+		free(new);
+	}
 	return;
 }
 void sigHandlerTerm(int signum){
@@ -469,7 +507,7 @@ int main(int argc, char** argv){
 	// wrap up
 	free(stack);
 	// unmount file systems and remove devices
-	length = strlen(command->rootPath);
+	/*length = strlen(command->rootPath);
 	char* paths = malloc(sizeof(char) * (length + 13));
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/proc/sys");
@@ -506,7 +544,8 @@ int main(int argc, char** argv){
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/console");
 	umount2(paths, MNT_DETACH);
-	free(paths);
+	free(paths);*/
+	cleanMount(command->rootPath);
 	//close(log);
 	if(!WIFEXITED(status)){
 		exit(1);
