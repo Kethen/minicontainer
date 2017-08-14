@@ -13,7 +13,7 @@ $make miniscreencontainer (screen embedded version)
 $make minicontainer (tty stealing version, usually kills parent process due to SIGHUP sent from agetty when it takes over)
 $make miniweirdcontainer (first prototype, trying to do pty passthrough then realise that I need vt100 emulation codes)
 
-Usage:
+Usage: \
 #miniscreencontainer -p (root path) \
 	[-i (custom init path inside root=/sbin/init)] \
 	[-r (runlevel=3)] [-n (custom child process name=minicontainer_inside (inits could change their name however))] \
