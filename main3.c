@@ -129,7 +129,19 @@ int launch(void * input){
 	}
 }
 void printUsage(){
-	printf("Usage: miniscreencontainer -p root path [-i custom init path inside root=/sbin/init] [-r runlevel=3] [-n custom child process name and screen window name (inits could change their process name however)] [-s alternate screen binary] [-a [pid or name, relays to screen -r for reattachment]] [-h]\n-h will skip starting a new screen then take current tty over directly. This method usually result in sighup on parent and kills the parent. This flag was made for self launching inside a screen\n");
+	printf("Usage:\n");
+	printf("miniscreencontainer -p root path \\\n");
+	printf("\t[-i init=/sbin/init] \\\n"); 
+	printf("\t[-r runlevel=3] \\\n");
+	printf("\t[-n custom child process name and screen window name] \\\n");
+	printf("\t[-s alternate screen binary] \\\n"); 
+	printf("\t[-a [pid or name, relays to screen -r for reattachment]] \\\n");
+	printf("\t[-h]\n");
+	printf("\n");
+	printf("-n : inits could change their process name however\n");
+	printf("-h : will skip starting a new screen then take current tty over directly. This method usually result in sighup on parent and kills the parent. This flag was made for self launching inside a screen\n");
+
+	
 	return;
 }
 void addToArg(char opt, char* arg, char** argv, int* count){
