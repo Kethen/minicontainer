@@ -21,7 +21,7 @@ $(SCREENSRC)/tty.c:
 	cd $(SCREENSRC)/; make tty.c
 
 clean:
-	rm -f minicontainer
+	rm -f minicontainer featuretest
 	cd $(SCREENSRC)/; make realclean;
 
 $(SCREENSRC)/acls.o:$(SCREENSRC)/config.h $(SCREENSRC)/acls.c $(SCREENSRC)/acls.h
