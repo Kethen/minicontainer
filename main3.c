@@ -236,6 +236,7 @@ void printUsage(){
 	printf("\t[-n custom child process name and screen window name] \\\n");
 	printf("\t[-s alternate screen binary] \\\n"); 
 	printf("\t[-a [pid or name, relays to screen -r for reattachment]] \\\n");
+	printf("\t[-d pid or name, relays to screen -d for detachment] \\\n");
 	printf("\t[-h]\n");
 	printf("\n");
 	printf("-n : inits could change their process name however\n");
@@ -253,6 +254,12 @@ void addToArg(char opt, char* arg, char** argv, int* count){
 	argv[*count] = malloc(sizeof(char) * (strlen(arg) + 1));
 	strcpy(argv[*count], arg);
 	(*count)++;
+	return;
+}
+void reassignString(char** dest, char* src){
+	free(*dest);
+	*dest = malloc(sizeof(char) * (strlen(src) + 1));
+	strcpy(*dest, src);
 	return;
 }
 int main(int argc, char** argv){
@@ -289,7 +296,10 @@ int main(int argc, char** argv){
 	char* reattachString = 0;
 	// flag for changed name
 	int nameChange = 0;
-	while((opt = getopt(argc, argv, ":p:i:r:n:s:a:h")) != -1){
+	// flag for detach mode
+	int detach = 0;
+	char* detachString;
+	while((opt = getopt(argc, argv, ":p:i:r:n:s:a:d:h")) != -1){
 		switch(opt){
 			case 'p':
 				length = strlen(optarg);
@@ -370,6 +380,14 @@ int main(int argc, char** argv){
 					strcpy(reattachString, optarg);
 				}
 				break;
+			case 'd':
+				detach = 1;
+				length = strlen(optarg);
+				if(length != 0){
+					detachString = malloc(sizeof(char) * (length + 1));
+					strcpy(detachString, optarg);
+				}
+				break;
 			case ':':
 				if(optopt != 'a'){
 					printUsage();
@@ -397,15 +415,34 @@ int main(int argc, char** argv){
 	sigaction(SIGHUP, &sigActionIgnore, 0);
 	// run in reattach mode
 	if(reattach){
-		argv2[1] = malloc(sizeof(char) * 3);
-		strcpy(argv2[1], "-r");
-		argv2[2] = reattachString;
+		reassignString(&(argv2[1]), "-r");
+		if(reattachString != 0)
+			reassignString(&(argv2[2]), reattachString);
+		else{
+			free(argv2[2]);
+			argv2[2] = 0;
+		}
+		free(argv2[3]);
 		argv2[3] = 0;
 		if(screenBinary){
+			reassignString(&(argv2[0]), screenBinary);
 			execvp(screenBinary, argv2);
 		}else{
-			
 			main2(reattachString == 0 ? 2 : 3, argv2);
+			exit(0);
+		}
+	}
+	// detach mode
+	if(detach){
+		reassignString(&(argv2[1]), "-d");
+		reassignString(&(argv2[2]), detachString);
+		free(argv2[3]);
+		argv2[3] = 0;
+		if(screenBinary){
+			reassignString(&(argv2[0]), screenBinary);
+			execvp(screenBinary, argv2);
+		}else{
+			main2(3, argv2);
 			exit(0);
 		}
 	}
@@ -428,13 +465,11 @@ int main(int argc, char** argv){
 	// run in screen mode or pty highjack mode
 	if(screen){
 		if(nameChange){
-			free(argv2[2]);
-			argv2[2] = malloc(sizeof(char) * (strlen(command->processName) + 1));
-			strcpy(argv2[2], command->processName);
+			reassignString(&(argv2[2]), command->processName);
 		}
 		// custom binary or embedded
 		if(screenBinary){
-			argv2[0] = screenBinary;
+			reassignString(&(argv2[0]), screenBinary);
 			if(execvp(screenBinary, argv2) == -1){
 				printf("cannot find specified binary %s\n", screenBinary);
 			}
@@ -461,7 +496,6 @@ int main(int argc, char** argv){
 	close(console);
 	mount(ttynameBuffer, fullPathBuffer, 0, MS_BIND, 0);
 	free(fullPathBuffer);
-	//free(ttynameBuffer);
 	// prepare pipe to sync with child process
 	if(pipe(command->pipe_fd) != 0){
 		printf("failed creating pipe\n");
@@ -471,7 +505,7 @@ int main(int argc, char** argv){
 	void * stack = malloc(sysconf(_SC_PAGESIZE));
 	// log output for debug after tty takeover
 	// FILE* log = fopen("/tmp/minicontainerlog", "w");
-	
+
 	//int cloneFlags = CLONE_NEWPID;
 	int cloneFlags = CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_VM;
 	initpid = clone(launch, stack + sysconf(_SC_PAGESIZE), cloneFlags, command);

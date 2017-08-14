@@ -6,8 +6,10 @@ and
 
 jchroot https://github.com/vincentbernat/jchroot/blob/master/
 
+Currently embedding gnu screen as a vt100 emulator. In terms of source code volume this is more of an extension to gnu screen, however.
+
 Goal: \
-run on random devices such as android phones as long as kernel supports CLONE_NEWNS, CLONE_NEWPID, CLONE_NEWIPC and CLONE_NEWUTS
+a simple linux container that run on random devices such as android phones as long as kernel supports CLONE_NEWNS, CLONE_NEWPID, CLONE_NEWIPC and CLONE_NEWUTS
 
 Build:\
 $make
@@ -25,6 +27,8 @@ Usage:
 		[-s alternate screen binary] \
 	
 		[-a [pid or name, relays to screen -r for reattachment]] \
+		
+		[-d pid or name, relays to screen -d for detachment] \
 		
 		[-h]
 
