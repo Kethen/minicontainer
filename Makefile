@@ -9,7 +9,7 @@ featuretest: featuretest.c
 
 minicontainer: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
 	#gcc -g3 -O2 -Wall -Wextra -std=c11 -iquote. -DSCREENENCODINGS='"$(SCREENENCODINGS)"' $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lutil -lcrypt -lcurses  -lutil -lpam -o miniscreencontainer
-	gcc -O2 -s $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses  -lcrypt -o minicontainer
+	gcc -O2 -s $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses -lutil -lcrypt -o minicontainer
 
 minicontainerDEBUG: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
 	gcc -g3 $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses  -lcrypt -o minicontainerDEBUG
