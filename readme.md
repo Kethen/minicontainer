@@ -6,7 +6,8 @@ and
 
 jchroot https://github.com/vincentbernat/jchroot/blob/master/
 
-Goal: run on random devices such as android phones as long as kernel supports namespaces
+Goal: \
+run on random devices such as android phones as long as kernel supports CLONE_NEWNS, CLONE_NEWPID, CLONE_NEWIPC and CLONE_NEWUTS
 
 Build:\
 $make miniscreencontainer (screen embedded version)\
