@@ -26,11 +26,6 @@ int initpid;
 //int ptyinpid;
 //FILE* ptyinStream;
 struct termios config;
-void sigHandlerMain(int signum){
-	/*if(ptyinpid != -1){
-		kill(ptyinpid, signum);
-	}*/
-}
 void sigHandlerTerm(int signum){
 	if(initpid != -1){
 		kill(SIGKILL, initpid);
@@ -169,12 +164,11 @@ int launch(void * input){
 	//close(0);
 	//close(1);
 	//close(2);
-	int pid = execvpe(command->initPath, command->arg, command->env);
 	//int ttyfd = open(ttynameBuffer, O_RDWR);
 	//dup(ttyfd);
 	//dup(ttyfd);
 	//dup(ttyfd);
-	if(pid == -1){
+	if(execvpe(command->initPath, command->arg, command->env) == -1){
 		printf("failed to execute init %s\n", command->initPath);
 		exit(1);
 	}
@@ -339,9 +333,9 @@ int main(int argc, char** argv){
 		exit(0);
 	}*/
 	// handle signals of ctrl+c and ctrl+z
-	signal(SIGINT, sigHandlerMain);
-	signal(SIGTSTP, sigHandlerMain);
-	signal(SIGHUP, sigHandlerMain);
+	signal(SIGINT, SIG_IGN);
+	signal(SIGTSTP, SIG_IGN);
+	signal(SIGHUP, SIG_IGN);
 	// bind the current tty to /dev/console
 	char ttynameBuffer[50];
 	char fullPathBuffer[strlen(command->rootPath) + 12];
@@ -363,7 +357,7 @@ int main(int argc, char** argv){
 	void * stack = malloc(sysconf(_SC_PAGESIZE));
 	
 	//int cloneFlags = CLONE_NEWPID;
-	int cloneFlags = CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWIPC | CLONE_VM | CLONE_NEWUTS;
+	int cloneFlags = CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_VM;
 	initpid = clone(launch, stack + sysconf(_SC_PAGESIZE), cloneFlags, command);
 	if(initpid == -1){
 		printf("failed to create child process\n");

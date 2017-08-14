@@ -5,8 +5,11 @@ SCREENOBJFULL = $(SCREENSRC)/acls.o $(SCREENSRC)/ansi.o $(SCREENSRC)/attacher.o 
 
 miniscreencontainer: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
 	#gcc -g3 -O2 -Wall -Wextra -std=c11 -iquote. -DSCREENENCODINGS='"$(SCREENENCODINGS)"' $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lutil -lcrypt -lcurses  -lutil -lpam -o miniscreencontainer
-	gcc -s $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses  -lcrypt -o miniscreencontainer
+	gcc -O2 -s $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses  -lcrypt -o miniscreencontainer
 
+miniscreencontainerDEBUG: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
+	gcc -g3 $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses  -lcrypt -o miniscreencontainerDEBUG
+	
 miniweirdcontainer: main.c
 	gcc -s main.c -o miniweirdcontainer
 	

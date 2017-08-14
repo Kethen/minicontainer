@@ -1,3 +1,4 @@
+#include <config.h>
 #include <linux/sched.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +13,6 @@
 #include <sys/mount.h>
 #include <signal.h>
 #include <termios.h>
-#include <config.h>
 #include <screen.h>
 struct data{
 	char** arg;
@@ -22,17 +22,12 @@ struct data{
 	char* processName;
 	int pipe_fd[2];
 };
-//int ptymaster;
 int initpid;
+//int ptymaster;
 //int ptyoutpid;
 //int ptyinpid;
 //FILE* ptyinStream;
 struct termios config;
-void sigHandlerMain(int signum){
-	/*if(ptyinpid != -1){
-		kill(ptyinpid, signum);
-	}*/
-}
 void sigHandlerTerm(int signum){
 	if(initpid != -1){
 		kill(SIGKILL, initpid);
@@ -50,8 +45,8 @@ int launch(void * input){
 	close(pipe_in);
 	// set up some mounts before chroot
 	int length = strlen(command->rootPath);
-	char paths[length + 13];
-	char paths2[length + 13];
+	char* paths = malloc(sizeof(char) * (length + 13));
+	char* paths2 = malloc(sizeof(char) * (length + 13));
 	int perm0755 = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 	int result = 0;
 	strcpy(paths, command->rootPath);
@@ -112,6 +107,8 @@ int launch(void * input){
 			exit(1);
 		}
 	}
+	free(paths);
+	free(paths2);
 	// chroot
 	if(chroot(command->rootPath) == -1){
 		printf("chrooting failed\n");
@@ -121,24 +118,13 @@ int launch(void * input){
 	symlink("/dev/pts/ptmx", "/dev/ptmx");
 	// now symlink pty outputs created by parent
 	symlink("/console", "/dev/console");
-	//symlink("/console", "/dev/tty0");
 	// according to jchroot sources, sharing files could lead to different chroot escape
 	// I better read more on chroot and security at some point...
 	unshare(CLONE_FILES);
 	// start init
 	chdir("/");
-	// close current stdin, stdout, stderr
-	//char ttynameBuffer[50];
-	//ttyname_r(0, ttynameBuffer, 50);
-	//close(0);
-	//close(1);
-	//close(2);
-	int pid = execvpe(command->initPath, command->arg, command->env);
-	//int ttyfd = open(ttynameBuffer, O_RDWR);
-	//dup(ttyfd);
-	//dup(ttyfd);
-	//dup(ttyfd);
-	if(pid == -1){
+	sleep(20);
+	if(execvpe(command->initPath, command->arg, command->env) == -1){
 		printf("failed to execute init %s\n", command->initPath);
 		exit(1);
 	}
@@ -159,9 +145,9 @@ void addToArg(char opt, char* arg, char** argv, int* count){
 	return;
 }
 int main(int argc, char** argv){
-	//ptymaster = -1;
-	//ptyinpid = -1;
-	//ptyoutpid = -1;
+	//printf("debug: sleeping 10 seconds for gdb to be attached. my pid is %d\n", getpid());
+	//sleep(10);
+	int i;
 	initpid = -1;
 	// check if the current user is root
 	if(getuid() != 0){
@@ -204,12 +190,13 @@ int main(int argc, char** argv){
 	int length;
 	// make a copy of arguments if we're starting in screen mode
 	int argc2 = 3;
-	char* argv2[argc + 3];
+	char** argv2 = malloc(sizeof(char*) * (argc + 3));
 	argv2[0] = malloc((strlen(argv[0]) + 1) * sizeof(char));
 	strcpy(argv2[0], argv[0]);
 	argv2[1] = malloc((strlen(argv[0]) + 1) * sizeof(char));
 	strcpy(argv2[1], argv[0]);
-	argv2[2] = "-h";
+	argv2[2] = malloc(sizeof(char) * 3);
+	strcpy(argv2[2], "-h");
 	// flag for starting in screen mode
 	int screen = 1;
 	// screen binary path / custom screen start command
@@ -303,14 +290,14 @@ int main(int argc, char** argv){
 	}
 	// cap the newly created argument copy
 	argv2[argc2] = 0;
-	// handle signals of ctrl+c and ctrl+z
-	signal(SIGINT, sigHandlerMain);
-	signal(SIGTSTP, sigHandlerMain);
-	signal(SIGHUP, sigHandlerMain);
+	// handle signals of ctrl+c and ctrl+z as well as tty takeover
+	signal(SIGINT, SIG_IGN);
+	signal(SIGTSTP, SIG_IGN);
+	signal(SIGHUP, SIG_IGN);
 	// run in reattach mode
 	if(reattach){
-		
-		argv2[1] = "-r";
+		argv2[1] = malloc(sizeof(char) * 3);
+		strcpy(argv2[1], "-r");
 		argv2[2] = reattachString;
 		argv2[3] = 0;
 		if(screenBinary){
@@ -341,7 +328,7 @@ int main(int argc, char** argv){
 		if(screenBinary){
 			argv2[0] = screenBinary;
 			if(execvp(screenBinary, argv2) == -1){
-				printf("cannot find specified binary %s", screenBinary);
+				printf("cannot find specified binary %s\n", screenBinary);
 			}
 			exit(0);
 		}else{
@@ -351,9 +338,14 @@ int main(int argc, char** argv){
 			exit(0);
 		}
 	}
+	// we don't need argv2 anymore
+	for(i = 0;i < argc2;i++){
+		free(argv2[i]);
+	}
+	free(argv2);
 	// bind the current tty to /dev/console
-	char ttynameBuffer[50];
-	char fullPathBuffer[strlen(command->rootPath) + 12];
+	char* ttynameBuffer = malloc(sizeof(char) * 50);
+	char* fullPathBuffer = malloc(sizeof(char) * (strlen(command->rootPath) + 12));
 	if(ttyname_r(0, ttynameBuffer, 50) != 0){
 		printf("failed getting tty name\n");
 		exit(1);
@@ -363,6 +355,8 @@ int main(int argc, char** argv){
 	FILE* console = fopen(fullPathBuffer, "w");
 	close(console);
 	mount(ttynameBuffer, fullPathBuffer, 0, MS_BIND, 0);
+	free(fullPathBuffer);
+	free(ttynameBuffer);
 	// prepare pipe to sync with child process
 	if(pipe(command->pipe_fd) != 0){
 		printf("failed creating pipe\n");
@@ -370,9 +364,11 @@ int main(int argc, char** argv){
 	}
 	// start child process
 	void * stack = malloc(sysconf(_SC_PAGESIZE));
+	// log output for debug after tty takeover
+	// FILE* log = fopen("/tmp/minicontainerlog", "w");
 	
 	//int cloneFlags = CLONE_NEWPID;
-	int cloneFlags = CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWIPC | CLONE_VM | CLONE_NEWUTS;
+	int cloneFlags = CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_VM;
 	initpid = clone(launch, stack + sysconf(_SC_PAGESIZE), cloneFlags, command);
 	if(initpid == -1){
 		printf("failed to create child process\n");
@@ -390,17 +386,22 @@ int main(int argc, char** argv){
 	// now handle SIGTERM by killing the init
 	signal(SIGTERM, sigHandlerTerm);
 	// wait for child to finish
-	int initWaitRc = waitpid(initpid, &status, 0);
-	if(initWaitRc == -1){
+	printf("debug: initpid is %d\n", initpid);
+	int waitpidRv;
+	if((waitpidRv = waitpid(initpid, &status, 0)) == -1){
 		printf("something went wrong while waiting for the child to exit\n");
+		//fprintf(log, "something went wrong while waiting for the child to exit\n");
+		//fprintf(log, "waitpidRv is %d\n", waitpidRv);
+		//fprintf(log, "errno is %d\n", errno);
+		//fprintf(log, "EINVAL %d, ECHILD %d, EINTR %d, SIGHUP %d\n", EINVAL, ECHILD, EINTR, SIGHUP);
 	}
-
 	printf("wrapping up\n");
+	//fprintf(log, "wrapping up\n");
 	// wrap up
 	free(stack);
 	// unmount file systems and remove devices
 	length = strlen(command->rootPath);
-	char paths[length + 13];
+	char* paths = malloc(sizeof(char) * (length + 13));
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/proc/sys");
 	// unmount twice, first time strip off the bind mount, second time the ro mount
@@ -415,7 +416,6 @@ int main(int argc, char** argv){
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/dev/pts");
 	umount2(paths, MNT_DETACH);
-	int i;
 	for(i = 0;i < 7;i++){
 		strcpy(paths, command->rootPath);
 		strcat(paths, "/dev/");
@@ -437,8 +437,10 @@ int main(int argc, char** argv){
 	strcpy(paths, command->rootPath);
 	strcat(paths, "/console");
 	umount2(paths, MNT_DETACH);
+	free(paths);
 	// restore tty to cooked mode
 	tcsetattr(0, TCSANOW, &config);
+	close(log);
 	if(!WIFEXITED(status)){
 		exit(1);
 	}
