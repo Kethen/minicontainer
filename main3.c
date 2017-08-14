@@ -22,17 +22,76 @@ struct data{
 	char* processName;
 	int pipe_fd[2];
 };
-int initpid;
-//int ptymaster;
-//int ptyoutpid;
-//int ptyinpid;
-//FILE* ptyinStream;
-struct termios config;
+// stores the init pid for sigterm to kill it
+int initpid; 
+void defaultArgv2(char*** argv2p, char** argv, int* argc2p, int argc){
+	char** argv2;
+	*argv2p = argv2 = malloc(sizeof(char*) * (argc + 5));
+	*argc2p = 5;
+	argv2[0] = malloc((strlen(argv[0]) + 1) * sizeof(char));
+	strcpy(argv2[0], argv[0]);
+	argv2[1] = malloc(3 * sizeof(char));
+	strcpy(argv2[1], "-S");
+	argv2[2] = malloc(sizeof(char) * 2);
+	strcpy(argv2[2], "");
+	argv2[3] = malloc((strlen(argv[0]) + 1) * sizeof(char));
+	strcpy(argv2[3], argv[0]);
+	argv2[4] = malloc(sizeof(char) * 3);
+	strcpy(argv2[4], "-h");
+	return;
+}
+void freeArgv2(char** argv2, int argc2){
+	int i;
+	for(i = 0;i < argc2;i++){
+		free(argv2[i]);
+	}
+	free(argv2);
+	return;
+}
+void defaultData(struct data** commandp){
+	struct data * command;
+	command = *commandp = malloc(sizeof(struct data));
+	command->arg = malloc(sizeof(char*) * 3);
+	command->arg[0] = malloc(sizeof(char) * 14);
+	strcpy(command->arg[0], "minicontainer");
+	command->arg[1] = malloc(sizeof(char) * 2);
+	command->arg[1][0] = '3';
+	command->arg[1][1] = '\0';
+	command->arg[2] = 0;
+	command->env = malloc(sizeof(char*));
+	command->env[0] = malloc(sizeof(char) * 15);
+	strcpy(command->env[0], "container=mini");
+	command->initPath = malloc(sizeof(char) * 11);
+	strcpy(command->initPath, "/sbin/init");
+	command->rootPath = 0;
+	command->processName = malloc(sizeof(char) * 21);
+	strcpy(command->processName, "minicontainer_inside");
+	return;
+}
+void freeData(struct data* command){
+	int i = 0;
+	while(command->arg[i] != 0){
+		free(command->arg[i]);
+		i++;
+	}
+	free(command->arg);
+	i = 0;
+	while(command->arg[i] != 0){
+		free(command->arg[i]);
+		i++;
+	}
+	free(command->env);
+	free(command->initPath);
+	free(command->rootPath);
+	free(command->processName);
+	free(command);
+	return;
+}
 void sigHandlerTerm(int signum){
 	if(initpid != -1){
 		kill(SIGKILL, initpid);
 	}
-	
+	return;
 }
 const char* devices[] = {"null", "zero", "full", "random", "urandom", "tty", "net/tun"};
 int launch(void * input){
@@ -170,48 +229,16 @@ int main(int argc, char** argv){
 		printf("this program needs to be execute with tty or a pty\n");
 		exit(1);
 	}
-	// capture tty attributes
-	if(tcgetattr(0, &config) < 0){
-		printf("failed saving tty attributes\n");
-		exit(1);
-	}
-	struct data * command = malloc(sizeof(struct data));
-	command->arg = malloc(sizeof(char*) * 3);
-	command->arg[0] = malloc(sizeof(char) * 14);
-	strcpy(command->arg[0], "minicontainer");
-	command->arg[1] = malloc(sizeof(char) * 2);
-	command->arg[1][0] = '3';
-	command->arg[1][1] = '\0';
-	//debug
-	//free(command->arg[1]);
-	//command->arg[1] = 0;
-	//debug
-	command->arg[2] = 0;
-	command->env = malloc(sizeof(char*));
-	command->env[0] = malloc(sizeof(char) * 15);
-	strcpy(command->env[0], "container=mini");
-	command->initPath = malloc(sizeof(char) * 11);
-	strcpy(command->initPath, "/sbin/init");
-	command->rootPath = 0;
-	command->processName = malloc(sizeof(char) * 21);
-	strcpy(command->processName, "minicontainer_inside");
+	struct data * command = 0;
+	defaultData(&command);
 	// parse command
 	// -p for root path, -i for custom init path, -r for run level, -n for process name
 	char opt;
 	int length;
 	// make a copy of arguments if we're starting in screen mode
-	int argc2 = 5;
-	char** argv2 = malloc(sizeof(char*) * (argc + 5));
-	argv2[0] = malloc((strlen(argv[0]) + 1) * sizeof(char));
-	strcpy(argv2[0], argv[0]);
-	argv2[1] = malloc(3 * sizeof(char));
-	strcpy(argv2[1], "-S");
-	argv2[2] = malloc(sizeof(char) * 2);
-	strcpy(argv2[2], "");
-	argv2[3] = malloc((strlen(argv[0]) + 1) * sizeof(char));
-	strcpy(argv2[3], argv[0]);
-	argv2[4] = malloc(sizeof(char) * 3);
-	strcpy(argv2[4], "-h");
+	int argc2 = 0;
+	char** argv2 = 0;
+	defaultArgv2(&argv2, argv, &argc2, argc);
 	// flag for starting in screen mode
 	int screen = 1;
 	// screen binary path / custom screen start command
@@ -336,10 +363,12 @@ int main(int argc, char** argv){
 		if(screenBinary){
 			execvp(screenBinary, argv2);
 		}else{
+			
 			main2(reattachString == 0 ? 2 : 3, argv2);
 			exit(0);
 		}
 	}
+	// check root path
 	if(command->rootPath == 0){
 		printf("you must specify a root path\n");
 		printUsage();
@@ -377,10 +406,7 @@ int main(int argc, char** argv){
 		}
 	}
 	// we don't need argv2 anymore
-	for(i = 0;i < argc2;i++){
-		free(argv2[i]);
-	}
-	free(argv2);
+	freeArgv2(argv2, argc2);
 	// bind the current tty to /dev/console
 	char* ttynameBuffer = malloc(sizeof(char) * 50);
 	char* fullPathBuffer = malloc(sizeof(char) * (strlen(command->rootPath) + 12));
@@ -481,8 +507,6 @@ int main(int argc, char** argv){
 	strcat(paths, "/console");
 	umount2(paths, MNT_DETACH);
 	free(paths);
-	// restore tty to cooked mode
-	tcsetattr(0, TCSANOW, &config);
 	//close(log);
 	if(!WIFEXITED(status)){
 		exit(1);

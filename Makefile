@@ -12,12 +12,6 @@ miniscreencontainer: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
 miniscreencontainerDEBUG: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
 	gcc -g3 $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses  -lcrypt -o miniscreencontainerDEBUG
 	
-miniweirdcontainer: main.c
-	gcc -s main.c -o miniweirdcontainer
-	
-minicontainer: main2.c
-	gcc -s main2.c -o minicontainer
-	
 $(SCREENSRC)/config.h:
 	cd $(SCREENSRC)/; ./autogen.sh; ./configure
 
