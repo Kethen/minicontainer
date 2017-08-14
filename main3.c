@@ -123,14 +123,13 @@ int launch(void * input){
 	unshare(CLONE_FILES);
 	// start init
 	chdir("/");
-	sleep(20);
 	if(execvpe(command->initPath, command->arg, command->env) == -1){
 		printf("failed to execute init %s\n", command->initPath);
 		exit(1);
 	}
 }
 void printUsage(){
-	printf("Usage: miniscreencontainer -p root path [-i custom init path inside root=/sbin/init] [-r runlevel=3] [-n custom child process name=minicontainer_inside (inits could change their name however)] [-s alternate screen binary] [-h]\n-h will skip starting a new screen then take current tty over directly. This method usually result in sighup on parent and kills the parent. This flag was made for self launching inside a screen\n");
+	printf("Usage: miniscreencontainer -p root path [-i custom init path inside root=/sbin/init] [-r runlevel=3] [-n custom child process name and screen window name (inits could change their process name however)] [-s alternate screen binary] [-a [pid or name, relays to screen -r for reattachment]] [-h]\n-h will skip starting a new screen then take current tty over directly. This method usually result in sighup on parent and kills the parent. This flag was made for self launching inside a screen\n");
 	return;
 }
 void addToArg(char opt, char* arg, char** argv, int* count){
@@ -189,14 +188,18 @@ int main(int argc, char** argv){
 	char opt;
 	int length;
 	// make a copy of arguments if we're starting in screen mode
-	int argc2 = 3;
-	char** argv2 = malloc(sizeof(char*) * (argc + 3));
+	int argc2 = 5;
+	char** argv2 = malloc(sizeof(char*) * (argc + 5));
 	argv2[0] = malloc((strlen(argv[0]) + 1) * sizeof(char));
 	strcpy(argv2[0], argv[0]);
-	argv2[1] = malloc((strlen(argv[0]) + 1) * sizeof(char));
-	strcpy(argv2[1], argv[0]);
-	argv2[2] = malloc(sizeof(char) * 3);
-	strcpy(argv2[2], "-h");
+	argv2[1] = malloc(3 * sizeof(char));
+	strcpy(argv2[1], "-S");
+	argv2[2] = malloc((strlen(command->processName) + 1) * sizeof(char));
+	strcpy(argv2[2], command->processName);
+	argv2[3] = malloc((strlen(argv[0]) + 1) * sizeof(char));
+	strcpy(argv2[3], argv[0]);
+	argv2[4] = malloc(sizeof(char) * 3);
+	strcpy(argv2[4], "-h");
 	// flag for starting in screen mode
 	int screen = 1;
 	// screen binary path / custom screen start command
@@ -204,6 +207,8 @@ int main(int argc, char** argv){
 	// flag for reattach mode
 	int reattach = 0;
 	char* reattachString = 0;
+	// flag for changed name
+	int nameChange = 0;
 	while((opt = getopt(argc, argv, ":p:i:r:n:s:a:h")) != -1){
 		switch(opt){
 			case 'p':
@@ -248,6 +253,7 @@ int main(int argc, char** argv){
 					printUsage();
 					exit(1);
 				}
+				nameChange = 1;
 				free(command->processName);
 				command->processName = malloc(sizeof(char) * (length + 1));
 				strcpy(command->processName, optarg);
@@ -291,9 +297,15 @@ int main(int argc, char** argv){
 	// cap the newly created argument copy
 	argv2[argc2] = 0;
 	// handle signals of ctrl+c and ctrl+z as well as tty takeover
-	signal(SIGINT, SIG_IGN);
-	signal(SIGTSTP, SIG_IGN);
-	signal(SIGHUP, SIG_IGN);
+	struct sigaction sigActionIgnore;
+	sigActionIgnore.sa_handler = SIG_IGN;
+	//sigActionIgnore.sa_sigaction = 0;
+	sigemptyset(&sigActionIgnore.sa_mask);
+	sigActionIgnore.sa_flags = 0;
+	sigActionIgnore.sa_restorer = 0;
+	sigaction(SIGINT, &sigActionIgnore, 0);
+	sigaction(SIGTSTP, &sigActionIgnore, 0);
+	sigaction(SIGHUP, &sigActionIgnore, 0);
 	// run in reattach mode
 	if(reattach){
 		argv2[1] = malloc(sizeof(char) * 3);
@@ -324,6 +336,11 @@ int main(int argc, char** argv){
 	closedir(dir);
 	// run in screen mode or pty highjack mode
 	if(screen){
+		if(nameChange){
+			free(argv2[2]);
+			argv2[2] = malloc(sizeof(char) * (strlen(command->processName) + 1));
+			strcpy(argv2[2], command->processName);
+		}
 		// custom binary or embedded
 		if(screenBinary){
 			argv2[0] = screenBinary;
@@ -332,8 +349,8 @@ int main(int argc, char** argv){
 			}
 			exit(0);
 		}else{
-			printf("debug: argv2[1] is %s\n", argv2[1]);
-			printf("debug: argc2 is %d\n", argc2);
+			//printf("debug: argv2[1] is %s\n", argv2[1]);
+			//printf("debug: argc2 is %d\n", argc2);
 			main2(argc2, argv2);
 			exit(0);
 		}
@@ -384,7 +401,13 @@ int main(int argc, char** argv){
 	close(pipe_out);
 	int status;
 	// now handle SIGTERM by killing the init
-	signal(SIGTERM, sigHandlerTerm);
+	struct sigaction sigActionTerm;
+	sigActionTerm.sa_handler = sigHandlerTerm;
+	//sigActionTerm.sa_sigaction = 0;
+	sigemptyset(&sigActionTerm.sa_mask);
+	sigActionTerm.sa_flags = 0;
+	sigActionTerm.sa_restorer = 0;
+	sigaction(SIGTERM, &sigActionTerm, 0);
 	// wait for child to finish
 	printf("debug: initpid is %d\n", initpid);
 	int waitpidRv;
@@ -440,7 +463,7 @@ int main(int argc, char** argv){
 	free(paths);
 	// restore tty to cooked mode
 	tcsetattr(0, TCSANOW, &config);
-	close(log);
+	//close(log);
 	if(!WIFEXITED(status)){
 		exit(1);
 	}
