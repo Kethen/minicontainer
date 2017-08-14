@@ -125,9 +125,12 @@ void cleanMount(char *rootPath){
 	}
 	return;
 }
+// if termination, set a flag to skip termination messages
+int termination = 0;
 void sigHandlerTerm(int signum){
 	if(initpid != -1){
-		kill(SIGKILL, initpid);
+		kill(initpid, SIGKILL);
+		termination = 1;
 	}
 	return;
 }
@@ -458,7 +461,7 @@ int main(int argc, char** argv){
 	close(console);
 	mount(ttynameBuffer, fullPathBuffer, 0, MS_BIND, 0);
 	free(fullPathBuffer);
-	free(ttynameBuffer);
+	//free(ttynameBuffer);
 	// prepare pipe to sync with child process
 	if(pipe(command->pipe_fd) != 0){
 		printf("failed creating pipe\n");
@@ -496,13 +499,23 @@ int main(int argc, char** argv){
 	printf("debug: initpid is %d\n", initpid);
 	int waitpidRv;
 	if((waitpidRv = waitpid(initpid, &status, 0)) == -1){
+		//int errorNumber = errno;
 		printf("something went wrong while waiting for the child to exit\n");
 		//fprintf(log, "something went wrong while waiting for the child to exit\n");
 		//fprintf(log, "waitpidRv is %d\n", waitpidRv);
-		//fprintf(log, "errno is %d\n", errno);
+		//fprintf(log, "errno is %d\n", errorNumber);
 		//fprintf(log, "EINVAL %d, ECHILD %d, EINTR %d, SIGHUP %d\n", EINVAL, ECHILD, EINTR, SIGHUP);
 	}
+	// try reconnecting to tty
+	close(0);
+	close(1);
+	close(2);
+	int ttyfd = open(ttynameBuffer, O_RDWR);
+	dup(ttyfd);
+	dup(ttyfd);
+	dup(ttyfd);
 	printf("wrapping up\n");
+	free(ttynameBuffer);
 	//fprintf(log, "wrapping up\n");
 	// wrap up
 	free(stack);
@@ -547,6 +560,11 @@ int main(int argc, char** argv){
 	free(paths);*/
 	cleanMount(command->rootPath);
 	//close(log);
+	if(!termination){
+		printf("finished, press any key then <return> to continue\n");
+		getchar();
+		printf("goodbye!\n");
+	}
 	if(!WIFEXITED(status)){
 		exit(1);
 	}
