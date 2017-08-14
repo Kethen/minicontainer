@@ -206,8 +206,8 @@ int main(int argc, char** argv){
 	strcpy(argv2[0], argv[0]);
 	argv2[1] = malloc(3 * sizeof(char));
 	strcpy(argv2[1], "-S");
-	argv2[2] = malloc((strlen(command->processName) + 1) * sizeof(char));
-	strcpy(argv2[2], command->processName);
+	argv2[2] = malloc(sizeof(char) * 2);
+	strcpy(argv2[2], "");
 	argv2[3] = malloc((strlen(argv[0]) + 1) * sizeof(char));
 	strcpy(argv2[3], argv[0]);
 	argv2[4] = malloc(sizeof(char) * 3);
@@ -232,6 +232,16 @@ int main(int argc, char** argv){
 				}
 				command->rootPath = malloc(sizeof(char) * (length + 1));
 				strcpy(command->rootPath, optarg);
+				if(length < MAXSTR){
+					free(argv2[2]);
+					argv2[2] = malloc(sizeof(char) * (length + 1));
+					strcpy(argv2[2], optarg);
+					for(i = 0;i < length;i++){
+						if(argv2[2][i] == '/'){
+							argv2[2][i] = '\\';
+						}
+					}
+				}
 				addToArg(opt, optarg, argv2, &argc2);
 				break;
 			case 'i':
@@ -311,7 +321,6 @@ int main(int argc, char** argv){
 	// handle signals of ctrl+c and ctrl+z as well as tty takeover
 	struct sigaction sigActionIgnore;
 	sigActionIgnore.sa_handler = SIG_IGN;
-	//sigActionIgnore.sa_sigaction = 0;
 	sigemptyset(&sigActionIgnore.sa_mask);
 	sigActionIgnore.sa_flags = 0;
 	sigActionIgnore.sa_restorer = 0;
@@ -415,7 +424,6 @@ int main(int argc, char** argv){
 	// now handle SIGTERM by killing the init
 	struct sigaction sigActionTerm;
 	sigActionTerm.sa_handler = sigHandlerTerm;
-	//sigActionTerm.sa_sigaction = 0;
 	sigemptyset(&sigActionTerm.sa_mask);
 	sigActionTerm.sa_flags = 0;
 	sigActionTerm.sa_restorer = 0;
