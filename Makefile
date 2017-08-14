@@ -2,6 +2,8 @@ SCREENSRC = ./screen/screen-4.3.1
 
 SCREENOBJFULL = $(SCREENSRC)/acls.o $(SCREENSRC)/ansi.o $(SCREENSRC)/attacher.o $(SCREENSRC)/braille.o $(SCREENSRC)/braille_tsi.o $(SCREENSRC)/canvas.o $(SCREENSRC)/comm.o $(SCREENSRC)/display.o $(SCREENSRC)/encoding.o $(SCREENSRC)/fileio.o $(SCREENSRC)/help.o $(SCREENSRC)/input.o $(SCREENSRC)/kmapdef.o $(SCREENSRC)/layer.o $(SCREENSRC)/layout.o $(SCREENSRC)/list_display.o $(SCREENSRC)/list_generic.o $(SCREENSRC)/list_window.o $(SCREENSRC)/loadav.o $(SCREENSRC)/logfile.o $(SCREENSRC)/mark.o $(SCREENSRC)/misc.o $(SCREENSRC)/nethack.o $(SCREENSRC)/process.o $(SCREENSRC)/pty.o $(SCREENSRC)/putenv.o $(SCREENSRC)/resize.o $(SCREENSRC)/sched.o $(SCREENSRC)/screen.o $(SCREENSRC)/search.o $(SCREENSRC)/socket.o $(SCREENSRC)/teln.o $(SCREENSRC)/termcap.o $(SCREENSRC)/term.o $(SCREENSRC)/tty.o $(SCREENSRC)/utmp.o $(SCREENSRC)/viewport.o $(SCREENSRC)/window.o
 
+featuretest: featuretest.c
+	gcc -s featuretest.c -o featuretest
 
 miniscreencontainer: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
 	#gcc -g3 -O2 -Wall -Wextra -std=c11 -iquote. -DSCREENENCODINGS='"$(SCREENENCODINGS)"' $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lutil -lcrypt -lcurses  -lutil -lpam -o miniscreencontainer
