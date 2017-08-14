@@ -12,7 +12,8 @@ run on random devices such as android phones as long as kernel supports CLONE_NE
 Build:\
 $make
 
-Usage: \
+Usage: 
+
 	#minicontainer -p (root path) \
 
 		[-i init=/sbin/init] \
