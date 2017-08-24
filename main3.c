@@ -103,7 +103,7 @@ void cleanMount(char *rootPath){
 	struct mountPoint* listTail = 0;
 	struct mountPoint* new = 0;
 	while((mntline = getmntent(mounts)) != 0){
-		if(strstr(mntline->mnt_dir, rootPath) != mntline->mnt_dir){
+		if(strstr(mntline->mnt_dir, rootPath) != mntline->mnt_dir && strcmp(rootPath, mntline->mnt_dir) != 0){
 			continue;
 		}
 		new = malloc(sizeof(struct mountPoint));
