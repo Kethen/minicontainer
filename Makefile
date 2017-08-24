@@ -4,18 +4,20 @@ SCREENOBJFULL = $(SCREENSRC)/acls.o $(SCREENSRC)/ansi.o $(SCREENSRC)/attacher.o 
 
 all: minicontainer featuretest
 
+CC = gcc
+
 featuretest: featuretest.c
-	gcc -s featuretest.c -o featuretest
+	$(CC) -static featuretest.c -o featuretest
 
 minicontainer: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
 	#gcc -g3 -O2 -Wall -Wextra -std=c11 -iquote. -DSCREENENCODINGS='"$(SCREENENCODINGS)"' $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lutil -lcrypt -lcurses  -lutil -lpam -o miniscreencontainer
-	gcc -O2 -s $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses -lutil -lcrypt -o minicontainer
+	$(CC) -O2 -static  $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses -lutil -lcrypt -lreadline -ltermcap -o minicontainer
 
 minicontainerDEBUG: $(SCREENOBJFULL) $(SCREENHEADERFULL) main3.c
-	gcc -g3 $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses  -lcrypt -o minicontainerDEBUG
+	$(CC) -g3 $(SCREENOBJFULL) -I$(SCREENSRC)/ main3.c -lcurses -lutil -lcrypt -o minicontainerDEBUG
 	
 $(SCREENSRC)/config.h:
-	cd $(SCREENSRC)/; ./autogen.sh; ./configure
+	cd $(SCREENSRC)/; ./autogen.sh; CC=$(CC) ./configure --disable-socket-dir
 
 $(SCREENSRC)/tty.c:
 	cd $(SCREENSRC)/; make tty.c
